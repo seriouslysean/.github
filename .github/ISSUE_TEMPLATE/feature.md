@@ -1,19 +1,19 @@
 ---
 name: Feature request
-about: Something new, or a change to how something works
+about: An idea for something new, or for something to work better
 labels: enhancement
 ---
 
-## The idea
+## What you'd like
 
-<!-- What should exist, or work differently? -->
+<!-- What should be added or changed? -->
 
-## Why it matters
+## Why
 
 <!-- The problem it solves, or what it makes easier. -->
 
-## Done looks like
+## Requirements
 
-<!-- How we'll know it's finished. -->
+<!-- What has to be true for this to be done. -->
 
 - [ ]

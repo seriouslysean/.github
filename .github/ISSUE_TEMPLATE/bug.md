@@ -4,18 +4,20 @@ about: Something isn't working the way it should
 labels: bug
 ---
 
+<!-- Security problem? Report it privately instead; see the security policy. Remove secrets and private details from logs and screenshots. -->
+
 ## What happened
 
-<!-- What you saw. Paste the error or output if there is one. -->
+<!-- What went wrong. Include errors or output. -->
 
-## What should have happened
+## What you expected
 
-## How to see it
+## Steps to reproduce
 
-<!-- Steps from a clean start. -->
+<!-- The setup and commands needed to see it. Say so if it only happens sometimes. -->
 
 1.
 
-## Where
+## Version and setup
 
-<!-- Version or commit, and platform if it matters. -->
+<!-- The version or commit, plus OS, browser or runtime if it matters. -->

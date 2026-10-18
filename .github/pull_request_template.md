@@ -1,21 +1,22 @@
-<!-- Title: `type: summary` (feat, fix, docs, refactor, test, chore). It becomes the squash commit on `main`. -->
+<!--
+Title: `type: summary`, like `fix: keep the menu open`. Types: feat, fix, docs, refactor, test, chore.
+The title becomes the squash commit's subject and this description its message, so delete these comments before submitting.
+-->
 
-## What this changes
+## What changed
 
-<!-- One or two sentences: what's different once this merges? -->
+<!-- A sentence or two. Add screenshots for visual changes, and any step people must take after updating. -->
 
 ## Why
 
-<!-- The problem it solves. -->
+<!-- The problem this solves. -->
 
 Closes #
 
-## How it was checked
+## How you checked it
 
-<!-- What you ran, and what you saw. -->
+<!-- The commands or checks you ran and what happened, including tests and lint. Say if something couldn't be run. -->
 
-- [ ] Tests pass
-- [ ] Lint passes
-- [ ] A fix includes a test that failed before it
-- [ ] Docs are updated, if behavior changed
-- [ ] Nothing private: no tokens, hostnames, paths or personal details
+- [ ] A bug fix comes with a test that fails without it
+- [ ] Docs match how it works now
+- [ ] No secrets or private information
