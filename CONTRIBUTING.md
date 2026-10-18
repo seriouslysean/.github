@@ -14,4 +14,6 @@ Thanks for helping out! Every change starts with an issue, even a small one.
 
 **Using `gh`:** `--body` and `--body-file` skip the templates, so fill in the template yourself and pass it with `--body-file`, adding labels with `--label`. If a repo has no templates of its own, they're in [seriouslysean/.github](https://github.com/seriouslysean/.github).
 
+**Standards:** how repos here are named, set up and documented is in [docs/repo-standards.md](https://github.com/seriouslysean/.github/blob/main/docs/repo-standards.md).
+
 Found a security problem? See [SECURITY.md](SECURITY.md) instead of opening an issue or pull request.
