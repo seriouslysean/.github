@@ -45,6 +45,14 @@ Use only GitHub's default labels and labels added by Dependabot.
 - **Public repo security:** secret scanning, push protection and private vulnerability reporting on.
 - **Dependabot:** alerts on, with weekly grouped version updates for Actions and supported packages.
 
+## Checks
+
+- Every repo with code runs the same CI jobs on pull requests: `lint`, `typecheck` (typed code), `test`, and `build` (anything that ships).
+- Use each framework's own tools the way it expects, like `astro check`, `tsc`, SwiftLint, ruff, shellcheck or gofmt.
+- End-to-end tests use Playwright.
+- Every job sets `timeout-minutes`, sized to the job: about 5 for bot jobs, 10–15 for lint, typecheck and test, 30 for build and E2E.
+- A new push cancels that pull request's older runs.
+
 ## Licenses
 
 Use MIT for code. Posts, photos, game assets and other non-code content keep their own rights. Note these exceptions in `README.md`.
