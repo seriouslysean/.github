@@ -66,6 +66,14 @@ Use only GitHub's default labels and labels added by Dependabot.
 - Every job sets `timeout-minutes`, sized to the job: about 5 for bot jobs, 10–15 for lint, typecheck and test, 30 for build and E2E.
 - A new push cancels that pull request's older runs.
 
+## Branch protection
+
+- Every public repo gets one ruleset on the default branch, from `rulesets/default-branch.json`: pull request required with 0 approvals, squash only, no force pushes, no deleting the branch. Repo admins can bypass.
+- Add the repo's CI jobs as required status checks, not strict. Do it once `ci.yml` exists, so a green check means the real jobs ran.
+- Apply it with `python3 rulesets/apply.py <owner/repo> [--check NAME ...] [--apply]`. Without `--apply` it only prints.
+- Private repos on the Free plan can't have rulesets or protection. Public repos can.
+- Auto-merge waits only on required checks. A repo with the ruleset but no required checks merges as soon as a pull request exists, so a workflow that merges must wait for CI itself.
+
 ## Licenses
 
 Use MIT for code. Posts, photos, game assets and other non-code content keep their own rights. Note these exceptions in `README.md`.
