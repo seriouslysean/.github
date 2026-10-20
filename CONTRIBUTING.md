@@ -1,12 +1,12 @@
 # Contributing
 
-Thanks for helping out! Every change starts with an issue, even a small one.
+Thanks for helping out! New features, bug fixes and refactors start with an issue. Docs and upkeep (`docs`, `chore`) don't need one.
 
-1. **Find or open an issue.** Use the bug or feature template. For docs or cleanup, a blank issue with what, why and a short checklist is fine.
-2. **Branch from `main`.** Name it after the issue, like `14-menu-closes-early`. Fork first if you can't push here.
+1. **Find or open an issue** for a `feat`, `fix` or `refactor`. Use the bug or feature template.
+2. **Branch from `main`.** Name it after the issue, like `14-menu-closes-early`, or `<type>/<slug>` with no issue, like `chore/bump-node`. Fork first if you can't push here.
 3. **Make the change and check it.** A bug fix gets a test that fails without it. Run the tests and lint, and update docs if something works differently.
-4. **Open a pull request.** Fill in the template and add `Closes #14`.
-5. **Title it `type: summary`,** like `fix: keep the menu open`. Pull requests are squash-merged, so the title and description become the commit.
+4. **Open a pull request.** Fill in the template and add `Closes #14`, or say why there's no issue, like `No issue: chore`.
+5. **Title it `type(scope): summary`,** like `fix: keep the menu open` or `chore(deps): bump astro`. Types: `feat`, `fix`, `refactor`, `docs`, `chore`; the scope is optional. Pull requests are squash-merged, so the title and description become the commit.
 
 **Labels:** GitHub's built-in ones only, like `bug`, `enhancement` and `documentation`.
 
