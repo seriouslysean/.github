@@ -19,9 +19,22 @@ Name the local clone folder after the repo.
 
 ## Issues and pull requests
 
-- Start each change with an issue. Use the issue and PR templates.
-- Branch from `main` as `<issue>-<slug>`.
-- Title pull requests `type: summary`.
+- Title commits and pull requests `type(scope): summary`. The scope is optional.
+- Types:
+
+  | Type | For | Issue first? |
+  |---|---|---|
+  | `feat` | new behavior | yes |
+  | `fix` | a bug | yes |
+  | `refactor` | same behavior, reshaped or faster | yes |
+  | `docs` | docs only | no |
+  | `chore` | everything else: dependencies, build, CI, tests only, settings, lint | no |
+
+  These are a subset of the Conventional Commits types (commitlint's `config-conventional`). Use a scope to tell kinds of `chore` apart, like `chore(deps)` or `chore(ci)`.
+- Branch from `main` as `<issue>-<slug>`, or `<type>/<slug>` when there's no issue.
+- A pull request with no issue says why on the template's issue line, like `No issue: chore`.
+- Use the issue and PR templates.
+- Repos on GitHub, public or private, track issues in GitHub Issues. Cairn trackers are only for repos that live on this machine with no GitHub remote. Revisit once Cairn can sync with GitHub.
 - Agents using `gh`: fill out the template and pass the completed file with `--body-file`.
 
 ## Labels

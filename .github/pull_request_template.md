@@ -1,5 +1,5 @@
 <!--
-Title: `type: summary`, like `fix: keep the menu open`. Types: feat, fix, docs, refactor, test, chore.
+Title: `type(scope): summary`, like `fix: keep the menu open`. Types: feat, fix, refactor, docs, chore. Scope is optional.
 The title becomes the squash commit's subject and this description its message, so delete these comments before submitting.
 -->
 
@@ -12,6 +12,8 @@ The title becomes the squash commit's subject and this description its message, 
 <!-- The problem this solves. -->
 
 Closes #
+
+<!-- No issue? Replace the line above with why, like `No issue: chore`. -->
 
 ## How you checked it
 
