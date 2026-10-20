@@ -34,6 +34,7 @@ Name the local clone folder after the repo.
 - Branch from `main` as `<issue>-<slug>`, or `<type>/<slug>` when there's no issue.
 - A pull request with no issue says why on the template's issue line, like `No issue: chore`.
 - Use the issue and PR templates.
+- Repos on GitHub, public or private, track issues in GitHub Issues. Cairn trackers are only for repos that live on this machine with no GitHub remote. Revisit once Cairn can sync with GitHub.
 - Agents using `gh`: fill out the template and pass the completed file with `--body-file`.
 
 ## Labels
