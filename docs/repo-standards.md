@@ -62,6 +62,8 @@ Use only GitHub's default labels and labels added by Dependabot.
 
 - Every repo with code runs the same CI jobs on pull requests: `lint`, `typecheck` (typed code), `test`, and `build` (anything that ships).
 - Use each framework's own tools the way it expects, like `astro check`, `tsc`, SwiftLint, ruff, shellcheck or gofmt.
+- JavaScript and TypeScript lint with oxlint and format with oxfmt, replacing ESLint and Prettier.
+- `actions/setup-node` reads the version from `.nvmrc`, which pins the major (like `24`), and sets `check-latest: true` so CI gets patch releases the runner image hasn't cached yet. An open `engines` range in `package.json` would resolve to the newest major instead.
 - End-to-end tests use Playwright.
 - Every job sets `timeout-minutes`, sized to the job: about 5 for bot jobs, 10–15 for lint, typecheck and test, 30 for build and E2E.
 - A new push cancels that pull request's older runs.
