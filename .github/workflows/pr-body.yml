@@ -1,0 +1,90 @@
+# Shared check: the PR body carries every heading of the repo's PR template.
+# The template is the repo's own (at the PR base), else this repo's default.
+# `gh pr create --body/--body-file` skips the template; this check is what enforces it.
+# A repo calls it from a workflow on pull_request [opened, edited, synchronize, reopened]:
+#   jobs:
+#     pr-body:
+#       uses: seriouslysean/.github/.github/workflows/pr-body.yml@<commit sha>
+# No actions: the template comes through the API and the check is plain bash.
+# The body reaches the script through env, never interpolated into the script.
+name: PR body
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  pr-body:
+    # Dependabot's bodies don't follow the template. Match the PR author, not
+    # github.actor: a person who re-runs the job or pushes to a Dependabot branch
+    # becomes the actor. A job skipped here still reports success to required checks.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check the PR body against the template
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DEFAULT_REPO: ${{ github.repository_owner }}/.github
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          set -euo pipefail
+          tpl="$RUNNER_TEMP/template.md"
+          source=
+          err="$RUNNER_TEMP/gh-error.txt"
+          # The places GitHub reads a single PR template from. The contents API
+          # is case-sensitive, so both spellings are tried. Only a 404 means "not
+          # here"; any other error fails the job rather than check the wrong template.
+          for path in .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md \
+            pull_request_template.md PULL_REQUEST_TEMPLATE.md \
+            docs/pull_request_template.md docs/PULL_REQUEST_TEMPLATE.md; do
+            if gh api -H 'Accept: application/vnd.github.raw' \
+              "repos/$GITHUB_REPOSITORY/contents/$path?ref=$BASE_SHA" >"$tpl" 2>"$err"; then
+              source="$GITHUB_REPOSITORY/$path"
+              break
+            fi
+            if ! grep -q '(HTTP 404)' "$err"; then
+              cat "$err" >&2
+              echo "::error::Could not read $GITHUB_REPOSITORY/$path"
+              exit 1
+            fi
+          done
+          if [ -z "$source" ]; then
+            gh api -H 'Accept: application/vnd.github.raw' \
+              "repos/$DEFAULT_REPO/contents/.github/pull_request_template.md" >"$tpl"
+            source="$DEFAULT_REPO/.github/pull_request_template.md"
+          fi
+
+          # Headings outside HTML comments, trailing space trimmed. Bodies edited
+          # in the web UI arrive with CRLF line endings.
+          headings=$(tr -d '\r' <"$tpl" | awk '
+            {
+              line = $0; out = ""
+              while (1) {
+                if (incomment) {
+                  i = index(line, "-->"); if (!i) { line = ""; break }
+                  line = substr(line, i + 3); incomment = 0
+                }
+                i = index(line, "<!--"); if (!i) { out = out line; break }
+                out = out substr(line, 1, i - 1); line = substr(line, i + 4); incomment = 1
+              }
+              sub(/[ \t]+$/, "", out)
+              if (out ~ /^#+[ \t]/) print out
+            }')
+          body=$(printf '%s\n' "$PR_BODY" | tr -d '\r' | sed 's/[[:space:]]*$//')
+
+          missing=()
+          while IFS= read -r heading; do
+            [ -n "$heading" ] || continue
+            grep -Fxq -- "$heading" <<<"$body" || missing+=("$heading")
+          done <<<"$headings"
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::PR body is missing headings from $source: $(printf '%s, ' "${missing[@]}" | sed 's/, $//')"
+            exit 1
+          fi
+          echo "ok   PR body carries every heading of $source"
