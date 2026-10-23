@@ -35,12 +35,22 @@ jobs:
           set -euo pipefail
           tpl="$RUNNER_TEMP/template.md"
           source=
-          # The places GitHub reads a single PR template from.
-          for path in .github/pull_request_template.md pull_request_template.md docs/pull_request_template.md; do
+          err="$RUNNER_TEMP/gh-error.txt"
+          # The places GitHub reads a single PR template from. The contents API
+          # is case-sensitive, so both spellings are tried. Only a 404 means "not
+          # here"; any other error fails the job rather than check the wrong template.
+          for path in .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md \
+            pull_request_template.md PULL_REQUEST_TEMPLATE.md \
+            docs/pull_request_template.md docs/PULL_REQUEST_TEMPLATE.md; do
             if gh api -H 'Accept: application/vnd.github.raw' \
-              "repos/$GITHUB_REPOSITORY/contents/$path?ref=$BASE_SHA" >"$tpl" 2>/dev/null; then
+              "repos/$GITHUB_REPOSITORY/contents/$path?ref=$BASE_SHA" >"$tpl" 2>"$err"; then
               source="$GITHUB_REPOSITORY/$path"
               break
+            fi
+            if ! grep -q '(HTTP 404)' "$err"; then
+              cat "$err" >&2
+              echo "::error::Could not read $GITHUB_REPOSITORY/$path"
+              exit 1
             fi
           done
           if [ -z "$source" ]; then
