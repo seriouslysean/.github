@@ -15,14 +15,19 @@ trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$tmp/bin"
 cat >"$tmp/bin/gh" <<'EOF'
 #!/usr/bin/env bash
-# gh api -H <header> repos/<owner>/<repo>/contents/<path>[?ref=<ref>]
-url=${!#}
+# gh api -X GET -H <header> repos/<owner>/<repo>/contents/<path> [-f ref=<ref>]
 if [ -n "${GH_STUB_FAIL:-}" ]; then echo 'gh: Server Error (HTTP 500)' >&2; exit 1; fi
+ref=default
+for arg; do
+  case $arg in
+    repos/*) url=$arg ;;
+    ref=*) ref=${arg#ref=} ;;
+  esac
+done
 rest=${url#repos/}
 owner=${rest%%/*} rest=${rest#*/}
 repo=${rest%%/*} rest=${rest#*/contents/}
-path=${rest%%\?*} ref=default
-case $rest in *'?ref='*) ref=${rest#*\?ref=} ;; esac
+path=$rest
 file="$GH_STUB_TREE/$owner/$repo/$ref/$path"
 if [ -f "$file" ] && ls "${file%/*}" | grep -Fxq -- "${file##*/}"; then cat "$file"; else echo 'gh: Not Found (HTTP 404)' >&2; exit 1; fi
 EOF
@@ -104,6 +109,10 @@ run $'## Old' drizzt/mithral v1
 check "the template is read at the given base ref" 0 "$rc"
 run $'## Old' drizzt/mithral
 check "another ref reads its own template" 1 "$rc"
+contains "another ref names its own template" "$out" "drizzt/mithral/.github/pull_request_template.md"
+printf '## Odd\n' | put drizzt/mithral 'feat&x=1' .github/pull_request_template.md
+run $'## Odd' drizzt/mithral 'feat&x=1'
+check "a ref with query characters reaches gh whole" 0 "$rc"
 
 # The repo's extra check, at the base ref.
 cat <<'EOF' | put drizzt/guenhwyvar main scripts/checks/check-pr-body.sh
@@ -120,17 +129,33 @@ contains "the extra check is named" "$out" "fails drizzt/guenhwyvar/scripts/chec
 run "Fixes #1"$'\n'"${default/'## Why'/}" drizzt/guenhwyvar
 check "headings and extra check both report" 1 "$rc"
 contains "the missing heading still shows beside the extra check" "$out" "missing headings"
-run "Fixes #1" drizzt/guenhwyvar v2
-check "no extra check at another ref means only headings" 1 "$rc"
+run "$default" drizzt/guenhwyvar v2
+check "no extra check at another ref means only headings" 0 "$rc"
+case $out in
+  *"ok   extra"*) check "the extra check does not run at that ref" absent present ;;
+  *) check "the extra check does not run at that ref" absent absent ;;
+esac
 cat <<'EOF' | put drizzt/guenhwyvar crlf scripts/checks/check-pr-body.sh
 [ "$(tr -dc '\r' | wc -c)" -eq 0 ]
 EOF
 run "$(printf '%s' "$default" | sed 's/$/\r/')" drizzt/guenhwyvar crlf
 check "the extra check gets the body without CR" 0 "$rc"
 
+cat <<'EOF' | put drizzt/guenhwyvar token scripts/checks/check-pr-body.sh
+[ -z "${GH_TOKEN:-}${GITHUB_TOKEN:-}" ]
+EOF
+GH_TOKEN=secret GITHUB_TOKEN=secret run "$default" drizzt/guenhwyvar token
+check "the extra check gets no GitHub token" 0 "$rc"
+
 # Errors and output modes.
 run "$default" drizzt
 check "a repo without an owner is a usage error" 2 "$rc"
+run "$default" ../..
+check "a dot path as the repo is a usage error" 2 "$rc"
+run "$default" drizzt/..
+check "a dot repo name is a usage error" 2 "$rc"
+run "$default" drizzt/.github
+check "a repo named .github is allowed" 0 "$rc"
 out=$(printf '' | bash "$checker" drizzt/icewind 2>&1)
 check "a missing base ref is a usage error" 2 "$?"
 GH_STUB_FAIL=1 run "$default" drizzt/icewind

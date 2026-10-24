@@ -1,4 +1,4 @@
-# This repo's own PRs run the shared PR body check from the PR's commit, so a change to
+# This repo's own PRs run the shared PR body check from the PR's merge commit, so a change to
 # pr-body.yml or scripts/check-pr-body.sh runs on GitHub before callers pin it.
 name: PR body
 

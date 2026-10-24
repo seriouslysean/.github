@@ -12,7 +12,8 @@ set -euo pipefail
 umask 077
 export LC_ALL=C
 
-if [ "$#" -ne 2 ] || ! [[ $1 =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || [ -z "$2" ]; then
+if [ "$#" -ne 2 ] || ! [[ $1 =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] ||
+  [[ $1 =~ (^|/)\.\.?(/|$) ]] || [ -z "$2" ]; then
   echo 'usage: check-pr-body.sh <owner/repo> <base ref> <body.md' >&2
   exit 2
 fi
@@ -28,10 +29,12 @@ error() {
 }
 
 # fetch <repo> <path> <ref> <out>: 0 read, 1 not there (404). Any other error stops the
-# check rather than check against the wrong template.
+# check rather than check against the wrong template. An empty ref reads the default
+# branch; gh encodes the ref into the query.
 fetch() {
-  if gh api -H 'Accept: application/vnd.github.raw' \
-    "repos/$1/contents/$2${3:+?ref=$3}" >"$4" 2>"$tmp/gh-error"; then
+  local args=(-X GET -H 'Accept: application/vnd.github.raw' "repos/$1/contents/$2")
+  [ -z "$3" ] || args+=(-f "ref=$3")
+  if gh api "${args[@]}" >"$4" 2>"$tmp/gh-error"; then
     return 0
   fi
   grep -q '(HTTP 404)' "$tmp/gh-error" && return 1
@@ -92,8 +95,9 @@ else
   echo "ok   PR body carries every heading of $source"
 fi
 
+# The repo's script reads only the body: it gets no GitHub token.
 if fetch "$repo" "$extra" "$ref" "$tmp/extra.sh"; then
-  if ! bash "$tmp/extra.sh" <"$tmp/body.md"; then
+  if ! env -u GH_TOKEN -u GITHUB_TOKEN bash "$tmp/extra.sh" <"$tmp/body.md"; then
     error "PR body fails $repo/$extra"
     failed=1
   fi
