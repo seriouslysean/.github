@@ -12,7 +12,7 @@ Thanks for helping out! New features, bug fixes and refactors start with an issu
 
 **Privacy:** keep secrets and private details out of code, issues and pull requests. Use paths relative to the repo.
 
-**Using `gh`:** `--body` and `--body-file` skip the templates, so fill in the template yourself and pass it with `--body-file`, adding labels with `--label`. If a repo has no templates of its own, they're in [seriouslysean/.github](https://github.com/seriouslysean/.github).
+**Using `gh`:** `--body` and `--body-file` skip the templates, so fill in the template yourself and pass it with `--body-file`, adding labels with `--label`. If a repo has no templates of its own, they're in [seriouslysean/.github](https://github.com/seriouslysean/.github). Check the body before posting with the script CI runs, [`scripts/check-pr-body.sh`](scripts/check-pr-body.sh) at the commit the repo's `pr-body.yml` pins: `bash check-pr-body.sh owner/repo main <pr.md`.
 
 **Standards:** how repos here are named, set up and documented is in [docs/repo-standards.md](https://github.com/seriouslysean/.github/blob/main/docs/repo-standards.md).
 

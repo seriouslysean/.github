@@ -1,0 +1,14 @@
+# This repo's own PRs run the shared PR body check from the PR's commit, so a change to
+# pr-body.yml or scripts/check-pr-body.sh runs on GitHub before callers pin it.
+name: PR body
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  pr-body:
+    uses: ./.github/workflows/pr-body.yml
