@@ -10,7 +10,7 @@
 # Without them, as in a local run, it is read from the default branch.
 # If the repo has scripts/checks/check-pr-body.sh at the base ref, that runs too, with the
 # same body on stdin.
-# Reads through `gh api`: GH_TOKEN in CI, the gh login locally.
+# Reads through one `gh api graphql` query: GH_TOKEN in CI, the gh login locally.
 # Exit: 0 the body passes; 1 a finding; 2 a usage or read error.
 set -euo pipefail
 umask 077
@@ -43,37 +43,71 @@ error() {
   if [ "${GITHUB_ACTIONS:-}" = true ]; then echo "::error::$1"; else echo "FAIL $1"; fi
 }
 
-# fetch <repo> <path> <ref> <out>: 0 read, 1 not there (404). Any other error stops the
-# check rather than check against the wrong template. An empty ref reads the default
-# branch; gh encodes the ref into the query.
-fetch() {
-  local args=(-X GET -H 'Accept: application/vnd.github.raw' "repos/$1/contents/$2")
-  [ -z "$3" ] || args+=(-f "ref=$3")
-  if gh api "${args[@]}" >"$4" 2>"$tmp/gh-error"; then
-    return 0
+# The places GitHub reads a single PR template from, in its order. Git paths are
+# case-sensitive, so both spellings are listed.
+paths=(.github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md
+  pull_request_template.md PULL_REQUEST_TEMPLATE.md
+  docs/pull_request_template.md docs/PULL_REQUEST_TEMPLATE.md)
+
+# One GraphQL query reads every candidate template and the extra check at the base ref, and
+# the default template, so a check costs one API call. A missing file is null, not an error;
+# a missing repo is an error, so only when the owner has no .github is the repo read alone.
+# Each file found prints as "<key><tab><base64 text>"; one GitHub cut short prints as
+# "truncated<tab><key>" and stops the check, since a partial template or script can't be trusted.
+blob='... on Blob { text isTruncated }'
+# GraphQL and jq variables, not shell ones.
+# shellcheck disable=SC2016
+query='query($owner: String!, $name: String!, $e0: String!, $e1: String!, $e2: String!, $e3: String!, $e4: String!, $e5: String!, $ex: String!'
+fields=''
+for i in 0 1 2 3 4 5; do fields="$fields p$i: object(expression: \$e$i) { $blob }"; done
+fields="$fields x: object(expression: \$ex) { $blob }"
+# shellcheck disable=SC2016
+pick='select(. != null) | if .isTruncated then "truncated\t\($k)" else "\($k)\t" + (.text // empty | @base64) end'
+# shellcheck disable=SC2016
+picks="(.data.repo // {}) as \$r | ((\"p0\", \"p1\", \"p2\", \"p3\", \"p4\", \"p5\", \"x\") as \$k | \$r[\$k] | $pick)"
+args=(-f owner="${repo%%/*}" -f name="${repo#*/}" -f ex="$ref:$extra")
+for i in 0 1 2 3 4 5; do args+=(-f "e$i=$ref:${paths[$i]}"); done
+if ! gh api graphql "${args[@]}" -f fname=.github -f ef="${default_ref:-HEAD}:.github/pull_request_template.md" \
+  -f query="$query, \$fname: String!, \$ef: String!) { repo: repository(owner: \$owner, name: \$name) { $fields } fallback: repository(owner: \$owner, name: \$fname) { t: object(expression: \$ef) { $blob } } }" \
+  --jq "$picks, (\"fallback\" as \$k | .data.fallback.t | $pick)" >"$tmp/files" 2>"$tmp/gh-error"; then
+  if ! grep -q 'Could not resolve to a Repository' "$tmp/gh-error" ||
+    ! gh api graphql "${args[@]}" -f query="$query) { repo: repository(owner: \$owner, name: \$name) { $fields } }" \
+      --jq "$picks" >"$tmp/files" 2>"$tmp/gh-error"; then
+    cat "$tmp/gh-error" >&2
+    error "could not read $repo"
+    exit 2
   fi
-  grep -q '(HTTP 404)' "$tmp/gh-error" && return 1
-  cat "$tmp/gh-error" >&2
-  error "could not read $1/$2"
+fi
+if cut_short=$(grep -m1 '^truncated	' "$tmp/files"); then
+  key=${cut_short#*	}
+  case $key in
+    p[0-5]) name="$repo/${paths[${key#p}]}" ;;
+    x) name="$repo/$extra" ;;
+    *) name="$default_repo/.github/pull_request_template.md" ;;
+  esac
+  error "$name is too large to read whole"
   exit 2
+fi
+
+# file <key> <out>: 0 and the text when the query found that file, else 1.
+file() {
+  local line
+  line=$(grep -m1 "^$1	" "$tmp/files") || return 1
+  printf '%s' "${line#*	}" | base64 --decode >"$2"
 }
 
 # Bodies edited in the web UI arrive with CRLF line endings.
 tr -d '\r' >"$tmp/body.md"
 
-# The places GitHub reads a single PR template from. The contents API is
-# case-sensitive, so both spellings are tried.
 source=
-for path in .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md \
-  pull_request_template.md PULL_REQUEST_TEMPLATE.md \
-  docs/pull_request_template.md docs/PULL_REQUEST_TEMPLATE.md; do
-  if fetch "$repo" "$path" "$ref" "$tmp/template.md"; then
-    source="$repo/$path"
+for i in 0 1 2 3 4 5; do
+  if file "p$i" "$tmp/template.md"; then
+    source="$repo/${paths[$i]}"
     break
   fi
 done
 if [ -z "$source" ]; then
-  fetch "$default_repo" .github/pull_request_template.md "$default_ref" "$tmp/template.md" || {
+  file fallback "$tmp/template.md" || {
     error "no PR template in $repo or $default_repo"
     exit 2
   }
@@ -111,7 +145,7 @@ else
 fi
 
 # The repo's script reads only the body: it gets no GitHub token.
-if fetch "$repo" "$extra" "$ref" "$tmp/extra.sh"; then
+if file x "$tmp/extra.sh"; then
   if ! env -u GH_TOKEN -u GITHUB_TOKEN bash "$tmp/extra.sh" <"$tmp/body.md"; then
     error "PR body fails $repo/$extra"
     failed=1
