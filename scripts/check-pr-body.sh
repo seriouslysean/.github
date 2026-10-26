@@ -4,8 +4,12 @@
 # before `gh pr create` or `gh pr edit`, so CI is a backstop rather than the first pass.
 #   check-pr-body.sh <owner/repo> <base ref> <body.md
 # The template is the repo's own at the base ref, from the places GitHub reads a single
-# PR template, else <owner>/.github's default. If the repo has scripts/checks/check-pr-body.sh
-# at the base ref, that runs too, with the same body on stdin.
+# PR template, else <owner>/.github's default. In the pr-body workflow that default is read at
+# the commit the caller pinned: WORKFLOW_REPO and WORKFLOW_SHA (job.workflow_repository and
+# job.workflow_sha) name the called workflow, and apply when WORKFLOW_REPO is <owner>/.github.
+# Without them, as in a local run, it is read from the default branch.
+# If the repo has scripts/checks/check-pr-body.sh at the base ref, that runs too, with the
+# same body on stdin.
 # Reads through `gh api`: GH_TOKEN in CI, the gh login locally.
 # Exit: 0 the body passes; 1 a finding; 2 a usage or read error.
 set -euo pipefail
@@ -20,6 +24,17 @@ fi
 repo=$1 ref=$2
 default_repo="${repo%%/*}/.github"
 extra=scripts/checks/check-pr-body.sh
+
+# The ref for the fallback template: the pinned commit when this runs from the shared
+# workflow of <owner>/.github, else empty (the default branch).
+default_ref=
+if [ -n "${WORKFLOW_SHA:-}" ] && [ "$(printf %s "${WORKFLOW_REPO:-}" | tr '[:upper:]' '[:lower:]')" = "$(printf %s "$default_repo" | tr '[:upper:]' '[:lower:]')" ]; then
+  if ! [[ $WORKFLOW_SHA =~ ^[0-9a-f]{40}$ ]]; then
+    echo 'WORKFLOW_SHA is not a full commit SHA' >&2
+    exit 2
+  fi
+  default_ref=$WORKFLOW_SHA
+fi
 
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/check-pr-body.XXXXXX")
 trap 'rm -rf -- "$tmp"' EXIT
@@ -58,7 +73,7 @@ for path in .github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md \
   fi
 done
 if [ -z "$source" ]; then
-  fetch "$default_repo" .github/pull_request_template.md "" "$tmp/template.md" || {
+  fetch "$default_repo" .github/pull_request_template.md "$default_ref" "$tmp/template.md" || {
     error "no PR template in $repo or $default_repo"
     exit 2
   }
