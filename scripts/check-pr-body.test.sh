@@ -21,6 +21,11 @@ cat >"$tmp/bin/gh" <<'EOF'
 # file is null; a missing fallback repo is an error, printed and exit 1 as gh does.
 echo call >>"$GH_STUB_CALLS"
 if [ -n "${GH_STUB_FAIL:-}" ]; then echo 'gh: Something went wrong (HTTP 502)' >&2; exit 1; fi
+if [ -n "${GH_STUB_FAIL_ONCE:-}" ] && [ ! -e "$GH_STUB_FAIL_ONCE" ]; then
+  : >"$GH_STUB_FAIL_ONCE"
+  echo 'gh: Something went wrong (HTTP 502)' >&2
+  exit 1
+fi
 fname=
 while [ $# -gt 0 ]; do
   case $1 in
@@ -29,11 +34,14 @@ while [ $# -gt 0 ]; do
     *) shift ;;
   esac
 done
-read_blob() { # <owner/repo> <expression> -> JSON {text} or null
+read_blob() { # <owner/repo> <expression> -> JSON {text, isTruncated} or null; a path named in
+  # GH_STUB_TRUNCATE comes back cut short, as GitHub does for a large blob
   local ref=${2%%:*} path=${2#*:} file
   [ "$ref" = HEAD ] && ref=default
   file="$GH_STUB_TREE/$1/$ref/$path"
-  if [ -f "$file" ] && ls "${file%/*}" | grep -Fxq -- "${file##*/}"; then jq -Rs '{text: .}' "$file"; else echo null; fi
+  if [ -f "$file" ] && ls "${file%/*}" | grep -Fxq -- "${file##*/}"; then
+    if [ "$path" = "${GH_STUB_TRUNCATE:-}" ]; then jq -Rs '{text: .[0:4], isTruncated: true}' "$file"; else jq -Rs '{text: ., isTruncated: false}' "$file"; fi
+  else echo null; fi
 }
 repo="$owner/$name"
 json=$(jq -n '{data: {repo: {}}}')
@@ -199,6 +207,17 @@ check "a template in the last place GitHub looks costs one API call" 1 "$(wc -l 
 printf '## Own\n' | put zaknafein/icewind main .github/pull_request_template.md
 run $'## Own' zaknafein/icewind
 check "an owner without a .github still reads the repo's own template" 0 "$rc"
+
+# A file GitHub cuts short, and a transient error on the combined query.
+GH_STUB_TRUNCATE=.github/pull_request_template.md run "$default" drizzt/icewind
+check "a cut-short default template stops the check" 2 "$rc"
+contains "it names the cut-short file" "$out" "drizzt/.github/.github/pull_request_template.md is too large to read whole"
+GH_STUB_TRUNCATE=scripts/checks/check-pr-body.sh run "Fixes #1"$'\n'"$default" drizzt/guenhwyvar
+check "a cut-short extra check is not run" 2 "$rc"
+rm -f "$tmp/failed-once"
+GH_STUB_FAIL_ONCE="$tmp/failed-once" run "$default" drizzt/icewind
+check "a transient error is not mistaken for a missing .github" 2 "$rc"
+contains "the transient error is named" "$out" "could not read drizzt/icewind"
 
 # Errors and output modes.
 run "$default" drizzt

@@ -51,9 +51,10 @@ paths=(.github/pull_request_template.md .github/PULL_REQUEST_TEMPLATE.md
 
 # One GraphQL query reads every candidate template and the extra check at the base ref, and
 # the default template, so a check costs one API call. A missing file is null, not an error;
-# a missing repo is an error, so if the owner has no .github the repo is read alone.
-# Each file found prints as "<key><tab><base64 text>".
-blob='... on Blob { text }'
+# a missing repo is an error, so only when the owner has no .github is the repo read alone.
+# Each file found prints as "<key><tab><base64 text>"; one GitHub cut short prints as
+# "truncated<tab><key>" and stops the check, since a partial template or script can't be trusted.
+blob='... on Blob { text isTruncated }'
 # GraphQL and jq variables, not shell ones.
 # shellcheck disable=SC2016
 query='query($owner: String!, $name: String!, $e0: String!, $e1: String!, $e2: String!, $e3: String!, $e4: String!, $e5: String!, $ex: String!'
@@ -61,16 +62,30 @@ fields=''
 for i in 0 1 2 3 4 5; do fields="$fields p$i: object(expression: \$e$i) { $blob }"; done
 fields="$fields x: object(expression: \$ex) { $blob }"
 # shellcheck disable=SC2016
-picks='(.data.repo // {}) as $r | (("p0", "p1", "p2", "p3", "p4", "p5", "x") as $k | $r[$k].text // empty | "\($k)\t" + @base64)'
+pick='select(. != null) | if .isTruncated then "truncated\t\($k)" else "\($k)\t" + (.text // empty | @base64) end'
+# shellcheck disable=SC2016
+picks="(.data.repo // {}) as \$r | ((\"p0\", \"p1\", \"p2\", \"p3\", \"p4\", \"p5\", \"x\") as \$k | \$r[\$k] | $pick)"
 args=(-f owner="${repo%%/*}" -f name="${repo#*/}" -f ex="$ref:$extra")
 for i in 0 1 2 3 4 5; do args+=(-f "e$i=$ref:${paths[$i]}"); done
 if ! gh api graphql "${args[@]}" -f fname=.github -f ef="${default_ref:-HEAD}:.github/pull_request_template.md" \
   -f query="$query, \$fname: String!, \$ef: String!) { repo: repository(owner: \$owner, name: \$name) { $fields } fallback: repository(owner: \$owner, name: \$fname) { t: object(expression: \$ef) { $blob } } }" \
-  --jq "$picks, (.data.fallback.t.text // empty | \"fallback\\t\" + @base64)" >"$tmp/files" 2>/dev/null &&
-  ! gh api graphql "${args[@]}" -f query="$query) { repo: repository(owner: \$owner, name: \$name) { $fields } }" \
-    --jq "$picks" >"$tmp/files" 2>"$tmp/gh-error"; then
-  cat "$tmp/gh-error" >&2
-  error "could not read $repo"
+  --jq "$picks, (\"fallback\" as \$k | .data.fallback.t | $pick)" >"$tmp/files" 2>"$tmp/gh-error"; then
+  if ! grep -q 'Could not resolve to a Repository' "$tmp/gh-error" ||
+    ! gh api graphql "${args[@]}" -f query="$query) { repo: repository(owner: \$owner, name: \$name) { $fields } }" \
+      --jq "$picks" >"$tmp/files" 2>"$tmp/gh-error"; then
+    cat "$tmp/gh-error" >&2
+    error "could not read $repo"
+    exit 2
+  fi
+fi
+if cut_short=$(grep -m1 '^truncated	' "$tmp/files"); then
+  key=${cut_short#*	}
+  case $key in
+    p[0-5]) name="$repo/${paths[${key#p}]}" ;;
+    x) name="$repo/$extra" ;;
+    *) name="$default_repo/.github/pull_request_template.md" ;;
+  esac
+  error "$name is too large to read whole"
   exit 2
 fi
 
