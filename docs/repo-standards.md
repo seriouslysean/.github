@@ -116,9 +116,11 @@ Use only GitHub's default labels and labels added by Dependabot.
 
 - Each repo is either versioned (released by tag) or continuous (deployed from `main`, no tags). `AGENTS.md` says which.
 - A release is an annotated `vX.Y.Z` tag on a commit already on `main`, with a GitHub release and generated notes. Fix a bad release with a new version. A repo's first release needs the owner's OK.
+- Versioned repos turn on immutable releases in the repo settings, so a published release's tag and assets can't change. Releases only go forward: a bad one stays, and a new version replaces it.
 - A version change arrives in a pull request. Agents never push a version bump or tag to `main`; a workflow cuts the release from `main` and retries a missing release even when the tag exists. A repo whose own docs give a release process with an owner approval step follows that instead.
+- OpenClaw plugin repos: `openclaw.build`, `openclaw.compat` and the `openclaw` peer range all name the OpenClaw version the plugin was last tested on, and a test fails when they disagree. The `openclaw` devDependency is what CI typechecks and may be newer. When the plugin is tested on a newer OpenClaw, all of them move together.
 - Keep the version in one file. If a second copy can't be avoided, the check command fails when they disagree.
-- No workflow pushes to `main`. A workflow that changes content opens a pull request, unless the owner grants that push a named ruleset bypass.
+- No workflow pushes to `main`. A workflow that changes content opens a pull request, unless the owner grants that push a named ruleset bypass. Exception: wordbug and wordbun take only words on `main`, so their rulesets keep no-force-push and no-delete but drop the pull request and required check rules, and Add Word pushes the word straight to `main`. Code changes reach them from occasional-wotd.
 - Deploy workflows are separate from `ci.yml`, use concurrency group `pages` without canceling, and say in a comment whether they wait for CI. Deploying on every push is fine only when `main` gets nothing but pull requests that passed a required check. Otherwise the deploy runs on `workflow_run` only when CI succeeded, and checks out the commit CI tested (`${{ github.event.workflow_run.head_sha }}`).
 
 ## Hygiene
