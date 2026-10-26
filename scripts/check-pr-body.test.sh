@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # scripts/check-pr-body.test.sh — synthetic-body tests for scripts/check-pr-body.sh.
-# A stub `gh` on PATH serves repo files from a temp tree, laid out as
+# A stub `gh` on PATH answers the check's GraphQL query from a temp tree, laid out as
 # <tree>/<owner>/<repo>/<ref>/<path> (ref "default" for the default branch); a missing
-# file answers 404 as gh does, matching case as the contents API does. The real default template is this repo's own.
+# file is null and a missing owner .github repo an error, as GitHub answers, matching case
+# as git paths do. It needs jq. The real default template is this repo's own.
 #   bash scripts/check-pr-body.test.sh
 # Exit: 0 if all cases pass; 1 listing how many failed.
 set -uo pipefail
@@ -15,24 +16,44 @@ trap 'rm -rf -- "$tmp"' EXIT
 mkdir -p "$tmp/bin"
 cat >"$tmp/bin/gh" <<'EOF'
 #!/usr/bin/env bash
-# gh api -X GET -H <header> repos/<owner>/<repo>/contents/<path> [-f ref=<ref>]
-if [ -n "${GH_STUB_FAIL:-}" ]; then echo 'gh: Server Error (HTTP 500)' >&2; exit 1; fi
-ref=default
-for arg; do
-  case $arg in
-    repos/*) url=$arg ;;
-    ref=*) ref=${arg#ref=} ;;
+# gh api graphql -f owner=… -f name=… -f e0..e5=<ref>:<path> -f ex=… [-f fname=.github -f ef=…] -f query=… --jq <expr>
+# Each expression reads <tree>/<owner>/<repo>/<ref>/<path> (ref HEAD is "default"). A missing
+# file is null; a missing fallback repo is an error, printed and exit 1 as gh does.
+echo call >>"$GH_STUB_CALLS"
+if [ -n "${GH_STUB_FAIL:-}" ]; then echo 'gh: Something went wrong (HTTP 502)' >&2; exit 1; fi
+fname=
+while [ $# -gt 0 ]; do
+  case $1 in
+    -f) case ${2%%=*} in owner | name | e[0-5] | ex | fname | ef) printf -v "${2%%=*}" %s "${2#*=}" ;; esac; shift 2 ;;
+    --jq) jqexpr=$2; shift 2 ;;
+    *) shift ;;
   esac
 done
-rest=${url#repos/}
-owner=${rest%%/*} rest=${rest#*/}
-repo=${rest%%/*} rest=${rest#*/contents/}
-path=$rest
-file="$GH_STUB_TREE/$owner/$repo/$ref/$path"
-if [ -f "$file" ] && ls "${file%/*}" | grep -Fxq -- "${file##*/}"; then cat "$file"; else echo 'gh: Not Found (HTTP 404)' >&2; exit 1; fi
+read_blob() { # <owner/repo> <expression> -> JSON {text} or null
+  local ref=${2%%:*} path=${2#*:} file
+  [ "$ref" = HEAD ] && ref=default
+  file="$GH_STUB_TREE/$1/$ref/$path"
+  if [ -f "$file" ] && ls "${file%/*}" | grep -Fxq -- "${file##*/}"; then jq -Rs '{text: .}' "$file"; else echo null; fi
+}
+repo="$owner/$name"
+json=$(jq -n '{data: {repo: {}}}')
+for k in e0 e1 e2 e3 e4 e5 ex; do
+  key=p${k#e}; [ "$k" = ex ] && key=x
+  json=$(jq --arg k "$key" --argjson b "$(read_blob "$repo" "${!k}")" '.data.repo[$k] = $b' <<<"$json")
+done
+if [ -n "$fname" ]; then
+  if [ -d "$GH_STUB_TREE/$owner/$fname" ]; then
+    json=$(jq --argjson b "$(read_blob "$owner/$fname" "$ef")" '.data.fallback = {t: $b}' <<<"$json")
+  else
+    jq -c '.data.fallback = null | .errors = [{type: "NOT_FOUND"}]' <<<"$json"
+    echo "gh: Could not resolve to a Repository" >&2
+    exit 1
+  fi
+fi
+jq -r "$jqexpr" <<<"$json"
 EOF
 chmod +x "$tmp/bin/gh"
-export PATH="$tmp/bin:$PATH" GH_STUB_TREE="$tmp/tree"
+export PATH="$tmp/bin:$PATH" GH_STUB_TREE="$tmp/tree" GH_STUB_CALLS="$tmp/calls"
 unset GITHUB_ACTIONS GH_STUB_FAIL
 
 # put <owner/repo> <ref> <path>: stdin becomes that file.
@@ -167,6 +188,18 @@ WORKFLOW_REPO=artemis/.github WORKFLOW_SHA=0123456789abcdef0123456789abcdef01234
 check "a pinned commit without the template is an error" 2 "$rc"
 rm -rf "$tmp/tree/artemis"
 
+# API calls per check.
+: >"$tmp/calls"
+run "$default" drizzt/icewind
+check "a repo on the default template costs one API call" 1 "$(wc -l <"$tmp/calls" | tr -d ' ')"
+: >"$tmp/calls"
+printf '## Notes\n' | put drizzt/mithral main docs/PULL_REQUEST_TEMPLATE.md
+run $'## Notes' drizzt/mithral
+check "a template in the last place GitHub looks costs one API call" 1 "$(wc -l <"$tmp/calls" | tr -d ' ')"
+printf '## Own\n' | put zaknafein/icewind main .github/pull_request_template.md
+run $'## Own' zaknafein/icewind
+check "an owner without a .github still reads the repo's own template" 0 "$rc"
+
 # Errors and output modes.
 run "$default" drizzt
 check "a repo without an owner is a usage error" 2 "$rc"
@@ -180,7 +213,7 @@ out=$(printf '' | bash "$checker" drizzt/icewind 2>&1)
 check "a missing base ref is a usage error" 2 "$?"
 GH_STUB_FAIL=1 run "$default" drizzt/icewind
 check "a read error other than 404 stops the check" 2 "$rc"
-contains "the read error is named" "$out" "could not read drizzt/icewind/.github/pull_request_template.md"
+contains "the read error is named" "$out" "could not read drizzt/icewind"
 run "$default" artemis/icewind
 check "no template anywhere is a read error" 2 "$rc"
 GITHUB_ACTIONS=true run "" drizzt/icewind
