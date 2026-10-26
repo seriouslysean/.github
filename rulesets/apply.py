@@ -50,6 +50,8 @@ if opts.id is not None:
         sys.exit(f"{repo}: ruleset {opts.id} targets {existing[0]['target']}, the file targets {body['target']}")
 else:
     existing = [r for r in live if r["name"] == body["name"]]
+    if len(existing) > 1:
+        sys.exit(f"{repo}: {len(existing)} live rulesets are named '{body['name']}'; pick one with --id")
 verb, url = ("PUT", f"repos/{repo}/rulesets/{existing[0]['id']}") if existing else ("POST", f"repos/{repo}/rulesets")
 print(f"{repo}: {verb} {url} from {path.name}; checks: {checks or 'none'}")
 if existing and existing[0]["name"] != body["name"]:
@@ -65,6 +67,10 @@ if existing:
     dropped = [c for c in live_checks if c not in checks]
     if dropped:
         print(f"  drops live required checks: {', '.join(dropped)}")
+    if set(opts.drop) & set(checks):
+        sys.exit(f"{repo}: --check and --drop name the same check")
+    if not set(opts.drop) <= set(live_checks):
+        sys.exit(f"{repo}: --drop names checks the live ruleset doesn't require: {', '.join(sorted(set(opts.drop) - set(live_checks)))}")
     unnamed = [c for c in dropped if c not in opts.drop]
     if unnamed:
         sys.exit(f"{repo}: live required checks {', '.join(unnamed)}: keep each with --check or drop it with --drop")
