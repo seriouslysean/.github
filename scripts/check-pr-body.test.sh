@@ -147,6 +147,26 @@ EOF
 GH_TOKEN=secret GITHUB_TOKEN=secret run "$default" drizzt/guenhwyvar token
 check "the extra check gets no GitHub token" 0 "$rc"
 
+# The fallback template at the commit the caller pinned (WORKFLOW_REPO, WORKFLOW_SHA).
+pin=0123456789abcdef0123456789abcdef01234567
+printf '## Pinned\n' | put artemis/.github "$pin" .github/pull_request_template.md
+printf '## Moved\n' | put artemis/.github default .github/pull_request_template.md
+WORKFLOW_REPO=artemis/.github WORKFLOW_SHA=$pin run $'## Pinned' artemis/icewind
+check "the fallback template is read at the pinned commit" 0 "$rc"
+WORKFLOW_REPO=artemis/.github WORKFLOW_SHA=$pin run $'## Moved' artemis/icewind
+check "a template change on the default branch does not reach a pinned caller" 1 "$rc"
+WORKFLOW_REPO=Artemis/.github WORKFLOW_SHA=$pin run $'## Pinned' artemis/icewind
+check "the workflow repo matches the owner's .github ignoring case" 0 "$rc"
+run $'## Moved' artemis/icewind
+check "without a pin the default branch is read" 0 "$rc"
+WORKFLOW_REPO=other/.github WORKFLOW_SHA=$pin run $'## Moved' artemis/icewind
+check "a pin from another owner's workflow does not apply" 0 "$rc"
+WORKFLOW_REPO=artemis/.github WORKFLOW_SHA=main run $'## Moved' artemis/icewind
+check "a pin that is not a full SHA is a usage error" 2 "$rc"
+WORKFLOW_REPO=artemis/.github WORKFLOW_SHA=0123456789abcdef0123456789abcdef01234568 run $'## Pinned' artemis/icewind
+check "a pinned commit without the template is an error" 2 "$rc"
+rm -rf "$tmp/tree/artemis"
+
 # Errors and output modes.
 run "$default" drizzt
 check "a repo without an owner is a usage error" 2 "$rc"
