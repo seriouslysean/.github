@@ -2,8 +2,7 @@
 
   python3 apply.py <owner/repo> [--file FILE] [--id ID] [--check NAME ...] [--drop NAME ...] [--apply]
 
-FILE is a name in this folder (default default-branch.json; tags-releases.json is the release
-tag rule), or a path when it contains a slash. The live ruleset to update is the one with --id, else the one with the
+FILE is a name in this folder (default default-branch.json), or a path when it contains a slash. The live ruleset to update is the one with --id, else the one with the
 file's name; with neither it creates one. Pass the id of a live ruleset named differently
 (like `main`) to migrate it to the shared file instead of adding a second one beside it.
 Without --apply it prints the body and what it would do. Each --check adds a required status
