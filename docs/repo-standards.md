@@ -95,7 +95,11 @@ Use only GitHub's default labels and labels added by Dependabot.
 - TypeScript repos have a `typecheck` script: `tsc --noEmit` in strict mode, or `astro check` plus `tsc -p tsconfig.tests.json --noEmit` in Astro sites.
 - Unit tests use Vitest; `node:test` is fine in repos with no dependencies. End-to-end tests use Playwright. A repo with no tests yet has a smoke test: the build works and one file loads.
 - Node is 24 or newer. `.nvmrc` pins the major (like `24`), and `engines.node`, if set, is a `>=` floor on that major. `actions/setup-node` reads `.nvmrc`, sets `check-latest: true` so CI gets patch releases the runner image hasn't cached yet, and caches npm.
-- Renaming a workflow or job: update everything that listens for the old name in the same pull request, add the new required check beside the old one, and remove the old one only after the new one passes on `main`.
+- Renaming a workflow: required checks match job names, not workflow names, so only update what listens for the old workflow name (`workflow_run` triggers, docs), in the same pull request.
+- Renaming a job that a ruleset requires takes two pull requests, because a required check that stops reporting blocks every pull request with "Waiting for status to be reported":
+  1. Keep the old job and add the renamed one beside it, with anything that listens for it accepting both names. Merge.
+  2. Once the new name has run on `main` (GitHub only offers checks that passed in the last seven days), add it to the ruleset, check that a new pull request shows both passing, then remove the old name.
+  3. Delete the old job and every reference to its name. Merge, then compare the ruleset with `ci.yml`.
 
 ## Branch protection
 
