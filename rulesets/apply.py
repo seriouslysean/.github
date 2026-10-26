@@ -1,6 +1,6 @@
 """Create or update a ruleset on a repo from a ruleset file in this folder.
 
-  python3 apply.py <owner/repo> [--file FILE] [--id ID] [--check NAME ...] [--apply]
+  python3 apply.py <owner/repo> [--file FILE] [--id ID] [--check NAME ...] [--drop NAME ...] [--apply]
 
 FILE is a name in this folder (default default-branch.json; tags-releases.json is the release
 tag rule), or a path when it contains a slash. The live ruleset to update is the one with --id, else the one with the
@@ -8,8 +8,8 @@ file's name; with neither it creates one. Pass the id of a live ruleset named di
 (like `main`) to migrate it to the shared file instead of adding a second one beside it.
 Without --apply it prints the body and what it would do. Each --check adds a required status
 check from GitHub Actions (not strict) and applies to branch rulesets only. The update replaces
-the live rules, so when the live ruleset requires checks it refuses unless --check names them
-all; it prints any it would drop. Needs a gh login that can admin the repo.
+the live ruleset, so it refuses when a live required check is neither kept with --check nor
+named with --drop, and it lists live rule types the file lacks. Needs a gh login that can admin the repo.
 """
 import argparse, json, os, subprocess, sys
 from pathlib import Path
@@ -19,6 +19,7 @@ ap.add_argument("repo")
 ap.add_argument("--file", default="default-branch.json")
 ap.add_argument("--id", type=int)
 ap.add_argument("--check", action="append", default=[])
+ap.add_argument("--drop", action="append", default=[])
 ap.add_argument("--apply", action="store_true")
 opts = ap.parse_args()
 repo, checks = opts.repo, opts.check
@@ -39,7 +40,8 @@ def gh(*a, stdin=None):
         sys.exit(f"gh {' '.join(a)}: {r.stderr.strip()}")
     return r.stdout
 
-live = json.loads(gh("api", f"repos/{repo}/rulesets"))
+live = json.loads(gh("api", "--paginate", "--slurp", f"repos/{repo}/rulesets?includes_parents=false"))
+live = [r for page in live for r in page]
 if opts.id is not None:
     existing = [r for r in live if r["id"] == opts.id]
     if not existing:
@@ -57,11 +59,15 @@ if existing:
     live_rules = json.loads(gh("api", url)).get("rules", [])
     live_checks = sorted({c["context"] for r in live_rules if r["type"] == "required_status_checks"
                           for c in r["parameters"]["required_status_checks"]})
+    lacking = sorted({r["type"] for r in live_rules} - {r["type"] for r in body["rules"]})
+    if lacking:
+        print(f"  replaces live rule types the file lacks: {', '.join(lacking)}")
     dropped = [c for c in live_checks if c not in checks]
     if dropped:
         print(f"  drops live required checks: {', '.join(dropped)}")
-        if not checks:
-            sys.exit(f"{repo}: the live ruleset requires checks; pass each to keep with --check")
+    unnamed = [c for c in dropped if c not in opts.drop]
+    if unnamed:
+        sys.exit(f"{repo}: live required checks {', '.join(unnamed)}: keep each with --check or drop it with --drop")
 if opts.apply:
     out = json.loads(gh("api", "-X", verb, url, "--input", "-", stdin=json.dumps(body)))
     print(f"  ruleset {out['id']} {out['enforcement']}")
