@@ -1,5 +1,7 @@
 # Repo standards
 
+> Since 2026-10-27 a rule here is followed only where a recorded problem calls for it, it measurably improves the process, and it is an established GitHub or community practice. Don't start new work from a rule that fails any of the three.
+
 How repositories on this account are named, set up and kept tidy.
 
 ## Names
