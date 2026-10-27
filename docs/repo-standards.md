@@ -104,7 +104,7 @@ Use only GitHub's default labels and labels added by Dependabot.
 ## Branch protection
 
 - Every public repo gets one ruleset on the default branch, from `rulesets/default-branch.json`: pull request required with 0 approvals, squash only, no force pushes, no deleting the branch. Repo admins can bypass.
-- Add the repo's CI jobs and the PR body check as required status checks, not strict. Do it once `ci.yml` exists, so a green check means the real jobs ran. A job left out needs a one-line reason.
+- Add the repo's CI jobs as required status checks, not strict. Do it once `ci.yml` exists, so a green check means the real jobs ran. A job left out needs a one-line reason.
 - Apply it with `python3 rulesets/apply.py <owner/repo> [--check NAME ...] [--apply]`. Without `--apply` it only prints.
 - Private repos on the Free plan can't have rulesets or protection. Public repos can.
 - Auto-merge waits only on required checks. A repo with the ruleset but no required checks merges as soon as a pull request exists, so a workflow that merges must wait for CI itself.
