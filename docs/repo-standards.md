@@ -1,6 +1,6 @@
 # Repo standards
 
-How repositories on this account are named, set up and kept tidy.
+How repositories on this account are named, set up and kept tidy. This is the playbook: every repo follows it by default, and a repo leaves it only through a line under [Exceptions](#exceptions).
 
 ## Names
 
@@ -115,6 +115,12 @@ Use only GitHub's default labels and labels added by Dependabot.
 - Each entry runs weekly, uses commit prefix `chore` with the scope, and has one group named after the ecosystem for minor and patch updates. Major updates are not grouped.
 - Ignore an update only when it can't be taken yet, with a comment saying why and when to remove it.
 - A Dependabot auto-merge workflow (stricter than GitHub's built-in auto-merge above) runs after `CI` finishes, checks that every check on the pull request's latest commit passed, never merges majors, and merges with `gh pr merge --squash --match-head-commit <sha>` so a newer push can't merge untested.
+
+## Exceptions
+
+- **Sites that publish by committing to `main`:** wordbug and wordbun push words directly from Add Word, so their rulesets block only deletion and force pushes and require no checks. Engine code reaches them through the upstream sync from occasional-wotd, which keeps the full ruleset.
+- **iOS apps:** Xcode builds and simulator tests run on the Mac, not in CI. CI runs what Linux can.
+- **One gate script:** a repo whose checks are one script runs it as one `test` job.
 
 ## Releases and deploys
 
