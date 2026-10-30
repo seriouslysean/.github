@@ -114,7 +114,7 @@ Use only GitHub's default labels and labels added by Dependabot.
 - Every active repo with workflows or package files has `.github/dependabot.yml`: `github-actions` at `/`, plus one entry per package ecosystem at the folder of its manifest.
 - Each entry runs weekly, uses commit prefix `chore` with the scope, and has one group named after the ecosystem for minor and patch updates. Major updates are not grouped.
 - Ignore an update only when it can't be taken yet, with a comment saying why and when to remove it.
-- A Dependabot auto-merge workflow (stricter than GitHub's built-in auto-merge above) runs after `CI` finishes, checks that every check on the pull request's latest commit passed, never merges majors, and merges with `gh pr merge --squash --match-head-commit <sha>` so a newer push can't merge untested.
+- Dependabot auto-merge is an `automerge` job in `ci.yml`, GitHub's documented pattern: it reads the update type with `dependabot/fetch-metadata`, never merges majors, and merges with `gh pr merge --squash --match-head-commit <sha>` so a newer push can't merge untested. Its `needs:` lists every other job in the workflow, or it merges before they finish.
 
 ## Releases and deploys
 
