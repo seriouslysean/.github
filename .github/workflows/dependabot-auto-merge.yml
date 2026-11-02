@@ -1,0 +1,41 @@
+name: Dependabot auto-merge
+
+# Squash-merges a Dependabot PR if the update is a patch or minor: GitHub's
+# documented pattern (dependabot/fetch-metadata, then gh pr merge), pinned to
+# the head that was checked. Majors stay open for a person.
+#
+# Call it as the last job of a repo's ci.yml, with every other job in needs:,
+# or it merges before they finish:
+#
+#   automerge:
+#     needs: [lint, test]
+#     if: github.event.pull_request.user.login == 'dependabot[bot]'
+#     permissions:
+#       contents: write
+#       pull-requests: write
+#     uses: splitleafhq/.github/.github/workflows/dependabot-auto-merge.yml@<sha> # <version>
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Read the update type
+        id: metadata
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+      - name: Merge minor and patch updates
+        if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: gh pr merge --squash --match-head-commit "$HEAD_SHA" "$PR_URL"
