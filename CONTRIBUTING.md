@@ -16,6 +16,6 @@ Thanks for helping out! New features, bug fixes and refactors start with an issu
 
 **Agents:** an agent works through its own machine account and login, never a person's. Posting as an account is not permission to post: a person's explicit request covers that one post. Merging needs the owner's approval unless the repo's own rules say otherwise.
 
-**Standards:** how repos here are named, set up and documented is in [docs/repo-standards.md](https://github.com/seriouslysean/.github/blob/main/docs/repo-standards.md).
+**Standards:** how repos here are named, set up and documented is in [docs/repo-standards.md](https://github.com/splitleafhq/.github/blob/main/docs/repo-standards.md).
 
 Found a security problem? See [SECURITY.md](SECURITY.md) instead of opening an issue or pull request.
