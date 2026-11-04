@@ -121,6 +121,7 @@ Use only GitHub's default labels and labels added by Dependabot.
 - **Sites that publish by committing to `main`:** wordbug and wordbun push words directly from Add Word, so their rulesets block only deletion and force pushes and require no checks. Engine code reaches them through the upstream sync from occasional-wotd, which keeps the full ruleset.
 - **iOS apps:** Xcode builds and simulator tests run on the Mac, not in CI. CI runs what Linux can.
 - **One gate script:** a repo whose checks are one script runs it as one `test` job.
+- **seriouslysean/.github:** an exact mirror of splitleafhq/.github, fast-forwarded after each merge there, so it has no ruleset and takes no PRs.
 
 ## Releases and deploys
 
