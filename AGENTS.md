@@ -8,5 +8,5 @@ Follow [CONTRIBUTING.md](CONTRIBUTING.md), including its section on agents and a
 
 ## Things to know
 
-- Rulesets are applied by the owner, who has admin. `rulesets/apply.py` prints without `--apply`; never pass `--apply`.
-- Docs are plain and short. `docs/repo-standards.md` is the reference for repo rules.
+- Rulesets live in splitleafhq/.github `rulesets/` and are applied by the owner, who has admin. `apply.py` prints without `--apply`; never pass `--apply`.
+- Docs are plain and short. The repo rules are in splitleafhq/.github `docs/repo-standards.md`; `docs/repo-standards.md` here only points there.

@@ -1,17 +1,16 @@
 # .github
 
-Shared community files for this account's repositories: the PR and issue templates, `CONTRIBUTING.md` and `SECURITY.md`, which repos without their own copy inherit. It also holds the ruleset files and the repo standards.
+Shared community files for this account's repositories: the PR and issue templates, `CONTRIBUTING.md` and `SECURITY.md`, which repos without their own copy inherit. The repo standards and ruleset files are in [splitleafhq/.github](https://github.com/splitleafhq/.github).
 
 ## What's here
 
 | Path | What it is |
 |---|---|
 | `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/` | Default templates |
-| `rulesets/` | Ruleset files and `apply.py`, which applies one to a repo |
-| `docs/repo-standards.md` | How repos here are named, set up and kept tidy |
+| `docs/repo-standards.md` | A pointer to the repo standards in splitleafhq/.github |
 
 ## Links
 
 - [Contributing](CONTRIBUTING.md)
 - [Security](SECURITY.md)
-- [Repo standards](docs/repo-standards.md)
+- [Repo standards](https://github.com/splitleafhq/.github/blob/main/docs/repo-standards.md)
