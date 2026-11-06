@@ -8,6 +8,8 @@ Shared files for this organization's repositories: the PR and issue templates, `
 |---|---|
 | `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/` | Default templates |
 | `.github/workflows/dependabot-auto-merge.yml` | The shared Dependabot auto-merge workflow |
+| `.githooks/pre-push`, `scripts/test-pre-push` | The pre-push hook every repo copies, and its test |
+| `scripts/check`, `.github/workflows/ci.yml` | This repo's own check: shellcheck and the hook test |
 | `docs/repo-standards.md` | How repos are named, set up and kept tidy |
 | `docs/testing.md` | The testing rules |
 | `rulesets/` | Ruleset files and `apply.py`, which applies one to a repo |

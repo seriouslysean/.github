@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Runs what CI runs; prints one line per step and exits nonzero if any step failed.
+# A missing tool fails its step: a skipped step would pass a push nothing checked.
+set -uo pipefail
+cd "$(dirname "$0")/.." || exit 1
+status=0
+step() {
+    local name=$1 out
+    shift
+    if out=$("$@" 2>&1); then
+        echo "ok   $name"
+    else
+        echo "FAIL $name"
+        echo "$out"
+        status=1
+    fi
+}
+step shellcheck shellcheck .githooks/pre-push scripts/check scripts/test-pre-push
+step pre-push scripts/test-pre-push
+exit $status

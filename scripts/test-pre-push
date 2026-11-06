@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Tests .githooks/pre-push the way git runs it: real pushes to a local bare repo, with a stub
+# scripts/check that records that it ran. Each case asserts the push's exit code and whether the
+# check ran. Usage: scripts/test-pre-push [path to hook] (default: this repo's .githooks/pre-push)
+set -uo pipefail
+
+hook=$(cd "$(dirname "${1:-.githooks/pre-push}")" && pwd)/$(basename "${1:-.githooks/pre-push}")
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/test-pre-push.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+git=(git -c user.name=test -c user.email=test@invalid -c init.defaultBranch=main -c advice.detachedHead=false)
+
+"${git[@]}" init -q --bare "$tmp/remote.git"
+"${git[@]}" clone -q "$tmp/remote.git" "$tmp/work" 2>/dev/null
+cd "$tmp/work" || exit 1
+mkdir -p .githooks scripts
+cp "$hook" .githooks/pre-push
+# The stub check leaves a marker so a case can tell whether the hook got as far as running it.
+# It fails when git's repo variables reach it: git exports GIT_DIR to a hook, and from a linked
+# worktree that points tools the check runs at the wrong repository.
+# shellcheck disable=SC2016 # these expand in the stub, not here
+printf '#!/bin/sh\ntouch "%s/ran"\n[ -z "${GIT_DIR-}" ] || { echo "GIT_DIR leaked: $GIT_DIR"; exit 3; }\nexit "${STUB_RC:-0}"\n' "$tmp" > scripts/check
+chmod +x .githooks/pre-push scripts/check
+"${git[@]}" config core.hooksPath .githooks
+"${git[@]}" add -A && "${git[@]}" commit -qm one && "${git[@]}" commit -q --allow-empty -m two
+"${git[@]}" push -q origin main 2>/dev/null
+
+failures=0
+# case <name> <want rc: 0|nonzero> <want check: ran|skipped> <want output (ERE, may be empty)> <command...>
+case_() {
+    local name=$1 want_rc=$2 want_check=$3 want_out=$4 rc check
+    shift 4
+    rm -f "$tmp/ran"
+    "$@" >"$tmp/out" 2>&1
+    rc=$?
+    [[ -e $tmp/ran ]] && check=ran || check=skipped
+    if { [[ $want_rc == 0 ]] && [[ $rc != 0 ]]; } || { [[ $want_rc != 0 ]] && [[ $rc == 0 ]]; } \
+        || [[ $check != "$want_check" ]] || { [[ -n $want_out ]] && ! grep -Eq "$want_out" "$tmp/out"; }; then
+        echo "FAIL $name: rc=$rc check=$check, want rc=$want_rc check=$want_check output=/$want_out/"
+        sed 's/^/     /' "$tmp/out"
+        failures=$((failures + 1))
+    else
+        echo "ok   $name"
+    fi
+}
+push() { "${git[@]}" push "$@"; }
+
+case_ "branch at HEAD" 0 ran "" push origin main:refs/heads/at-head
+"${git[@]}" tag -a -m t annotated-head HEAD
+case_ "annotated tag at HEAD" 0 ran "" push origin annotated-head
+"${git[@]}" tag light-head HEAD
+case_ "lightweight tag at HEAD" 0 ran "" push origin light-head
+case_ "branch delete" 0 ran "" push origin :refs/heads/at-head
+case_ "HEAD~1 to a branch" nonzero skipped "pre-push: pushing .* but HEAD is" push origin HEAD~1:refs/heads/older
+"${git[@]}" tag -a -m t annotated-older HEAD~1
+case_ "annotated tag on HEAD~1" nonzero skipped "pre-push: pushing .* but HEAD is" push origin annotated-older
+touch untracked
+case_ "untracked file" nonzero skipped "pre-push: uncommitted changes" push origin main:refs/heads/dirty
+rm untracked
+case_ "failing check refuses the push" nonzero ran "" env STUB_RC=1 "${git[@]}" push origin main:refs/heads/red
+case_ "push --dry-run runs the hook" nonzero ran "" env STUB_RC=1 "${git[@]}" push --dry-run origin main:refs/heads/probe
+"${git[@]}" worktree add -q "$tmp/linked" -b linked
+case_ "from a linked worktree" 0 ran "" "${git[@]}" -C "$tmp/linked" push origin linked
+
+[[ $failures == 0 ]] || { echo "FAIL $failures case(s)"; exit 1; }

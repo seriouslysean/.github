@@ -17,7 +17,7 @@ Closes #
 
 ## How you checked it
 
-<!-- The commands or checks you ran and what happened, including tests and lint. Say if something couldn't be run. -->
+<!-- Each command you ran and its exit code, like `scripts/check: 0`, including tests and lint. Write "not run" and why for anything you didn't run. -->
 
 - [ ] A bug fix comes with a test that fails without it
 - [ ] Docs match how it works now
