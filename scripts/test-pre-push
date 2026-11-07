@@ -57,6 +57,9 @@ case_ "annotated tag on HEAD~1" nonzero skipped "pre-push: pushing .* but HEAD i
 touch untracked
 case_ "untracked file" nonzero skipped "pre-push: uncommitted changes" push origin main:refs/heads/dirty
 rm untracked
+cp .git/index "$tmp/index" && echo corrupt > .git/index
+case_ "unreadable index" nonzero skipped "" push origin main:refs/heads/corrupt
+cp "$tmp/index" .git/index
 case_ "failing check refuses the push" nonzero ran "" env STUB_RC=1 "${git[@]}" push origin main:refs/heads/red
 case_ "push --dry-run runs the hook" nonzero ran "" env STUB_RC=1 "${git[@]}" push --dry-run origin main:refs/heads/probe
 "${git[@]}" worktree add -q "$tmp/linked" -b linked
