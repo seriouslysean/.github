@@ -14,9 +14,29 @@ name: Dependabot auto-merge
 #       contents: write
 #       pull-requests: write
 #     uses: splitleafhq/.github/.github/workflows/dependabot-auto-merge.yml@<sha> # <version>
+#
+# A merge made with GITHUB_TOKEN starts no workflows, so a repo that deploys on
+# push to main runs its deploy from a job that needs this one:
+#
+#   deploy-merged:
+#     needs: automerge
+#     if: needs.automerge.outputs.merged == 'true'
+#     runs-on: ubuntu-latest
+#     timeout-minutes: 5
+#     permissions:
+#       actions: write
+#     steps:
+#       - env:
+#           GH_TOKEN: ${{ github.token }}
+#           GH_REPO: ${{ github.repository }}
+#         run: gh workflow run deploy.yml --ref main
 
 on:
   workflow_call:
+    outputs:
+      merged:
+        description: "'true' when this run merged the pull request"
+        value: ${{ jobs.merge.outputs.merged }}
 
 permissions:
   contents: read
@@ -28,11 +48,14 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    outputs:
+      merged: ${{ steps.merge.outcome == 'success' }}
     steps:
       - name: Read the update type
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
       - name: Merge minor and patch updates
+        id: merge
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch' || steps.metadata.outputs.update-type == 'version-update:semver-minor'
         env:
           GH_TOKEN: ${{ github.token }}
