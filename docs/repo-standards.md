@@ -96,6 +96,18 @@ Use only GitHub's default labels and labels added by Dependabot.
 - Every `actions/checkout` sets `persist-credentials: false` unless the job pushes.
 - Use one Linux runner, `ubuntu-latest`, in every Linux job. macOS jobs pin a version, like `macos-15`.
 - Use each framework's own tools the way it expects, like `astro check`, `tsc`, SwiftLint, ruff, shellcheck or gofmt.
+- Outside JavaScript and TypeScript, each language uses these tools, pinned to a version:
+
+  | Language | Lint and format | Types and analysis |
+  |---|---|---|
+  | Python | ruff | pyrefly |
+  | Go | gofmt -s | go vet, staticcheck |
+  | Bash | ShellCheck, shfmt | |
+  | Swift | SwiftLint, SwiftFormat | |
+
+  Python installs with uv and commits `uv.lock`.
+
+  A repo that already gates on another tool, like mypy, keeps it until it moves over.
 - JavaScript and TypeScript lint with oxlint and format with oxfmt, replacing ESLint and Prettier. Commit `.oxlintrc.json` with warnings denied and `.oxfmtrc.json`. `format:check` runs in the `lint` job. Keep Prettier only for a file type oxfmt can't format yet, named in `AGENTS.md`.
 - TypeScript repos have a `typecheck` script: `tsc --noEmit` in strict mode, or `astro check` plus `tsc -p tsconfig.tests.json --noEmit` in Astro sites.
 - Unit tests use Vitest; `node:test` is fine in repos with no dependencies. End-to-end tests use Playwright. A repo with no tests yet has a smoke test: the build works and one file loads.
