@@ -55,6 +55,7 @@ Use only GitHub's default labels and labels added by Dependabot.
 ## Commands
 
 - Every repo with code has one check command: an executable `scripts/check` with no file extension. It runs everything CI runs, prints one short `ok` or `FAIL` line per step, shows full output only for failures, and exits nonzero if any step failed.
+- Each of those lines ends with the seconds the step took, like `ok   test (42 s)`, and a check that runs test files itself prints the seconds for each file, so a slow or growing step shows in every run's output. A check that doesn't print them yet adds them the next time its `scripts/check` changes.
 - In Node repos, `scripts/check` calls the package.json scripts. Use these names where the repo has the job: `dev`, `build`, `lint`, `lint:fix`, `format`, `format:check`, `typecheck`, `test`, `test:e2e`. Never `type-check`.
 - Install with `npm ci`, never `npm install`. OpenClaw plugin repos use `npm ci --ignore-scripts`.
 - Keep scripts in lowercase `scripts/`. Don't add a second task runner. An existing Makefile or justfile calls `scripts/check`.
