@@ -95,12 +95,12 @@ Use only GitHub's default labels and labels added by Dependabot.
 - act can't run JavaScript actions inside a job with `container:` ([nektos/act#732](https://github.com/nektos/act/issues/732)), so a step there that only speeds CI up, like `actions/cache`, sets `if: ${{ !env.ACT }}`. A job act can't run, like a macOS job, is named in the pull request with how it was checked instead.
 - A green act run doesn't show that a tool exists on the runner. act's image has more tools than the [ARC runner image](https://docs.github.com/en/actions/concepts/runners/actions-runner-controller), which is minimal by design, so a step installs what it calls or uses a setup action.
 - A test that passes on macOS and fails only on Linux isn't caught by this check. CI is the gate for it.
-- Run on pull requests and on pushes to `main`. Add `workflow_dispatch` when people or other workflows start it by hand, and never remove it without checking what starts it. A job-level `if:` must allow every trigger the workflow has.
+- Run on pull requests and on pushes to `main`. Add `workflow_dispatch` when people or other workflows start it by hand, and never remove it without checking what starts it. A job-level `if:` must allow every trigger the workflow has, except in the `automerge` and `deploy-merged` jobs under [Dependabot](#dependabot).
 - Set `permissions: contents: read` at the top. A job that needs more asks for it itself.
 - Every job sets `timeout-minutes`, based on how long it really takes, with room to spare. Jobs that call a reusable workflow are exempt.
 - Pull request runs share a concurrency group per workflow and pull request (`${{ github.workflow }}-${{ github.head_ref }}`) and cancel older runs. Other runs get their own group (`${{ github.run_id }}`), so a run on `main` is never replaced.
 - Every `actions/checkout` sets `persist-credentials: false` unless the job pushes.
-- Use one Linux runner, `ubuntu-latest`, in every Linux job. macOS jobs pin a version, like `macos-15`.
+- Use one Linux runner, `ubuntu-latest`, in every Linux job. A private repo may write it `${{ vars.RUNNER || 'ubuntu-latest' }}` for the self-hosted runner. macOS jobs pin a version, like `macos-15`.
 - Use each framework's own tools the way it expects, like `astro check`, `tsc`, SwiftLint, ruff, shellcheck or gofmt.
 - Outside JavaScript and TypeScript, each language uses these tools, pinned to a version:
 
@@ -113,8 +113,10 @@ Use only GitHub's default labels and labels added by Dependabot.
 
   Python installs with uv and commits `uv.lock`.
 
+  The table covers code the repo ships and its tests.
+
   A repo that already gates on another tool, like mypy, keeps it until it moves over.
-- JavaScript and TypeScript lint with oxlint and format with oxfmt, replacing ESLint and Prettier. Commit `.oxlintrc.json` with warnings denied and `.oxfmtrc.json`. `format:check` runs in the `lint` job. Keep Prettier only for a file type oxfmt can't format yet, named in `AGENTS.md`.
+- JavaScript and TypeScript lint with oxlint and format with oxfmt, replacing ESLint and Prettier. Commit `.oxlintrc.json` with `options.denyWarnings: true` and `.oxfmtrc.json`. `format:check` runs in the `lint` job. Keep Prettier only for a file type oxfmt can't format yet, named in `AGENTS.md`.
 - TypeScript repos have a `typecheck` script: `tsc --noEmit` in strict mode, or `astro check` plus `tsc -p tsconfig.tests.json --noEmit` in Astro sites.
 - Unit tests use Vitest; `node:test` is fine in repos with no dependencies. End-to-end tests use Playwright. A repo with no tests yet has a smoke test: the build works and one file loads.
 - Node is 24 or newer. `.nvmrc` pins major.minor (like `24.22`) and patch releases float; `engines.node`, if set, is a `>=` floor on that major. `actions/setup-node` reads `.nvmrc`, sets `check-latest: true` so CI gets patch releases the runner image hasn't cached yet, and caches npm.
@@ -138,25 +140,25 @@ Use only GitHub's default labels and labels added by Dependabot.
 - Every active repo with workflows or package files has `.github/dependabot.yml`: `github-actions` at `/`, plus one entry per package ecosystem at the folder of its manifest.
 - Each entry runs weekly, uses commit prefix `chore` with the scope, and has one group named after the ecosystem for minor and patch updates. Major updates are not grouped.
 - Ignore an update only when it can't be taken yet, with a comment saying why and when to remove it.
+- Node repos ignore `@types/node` major updates; it moves with `.nvmrc`, by hand.
 - Dependabot auto-merge is an `automerge` job in `ci.yml` that calls this repo's shared workflow, [`dependabot-auto-merge.yml`](../.github/workflows/dependabot-auto-merge.yml), pinned to a commit SHA: `uses: splitleafhq/.github/.github/workflows/dependabot-auto-merge.yml@<sha>`. The workflow follows GitHub's documented pattern: it reads the update type with `dependabot/fetch-metadata`, never merges majors, and merges with `gh pr merge --squash --match-head-commit <sha>` so a newer push can't merge untested. The job's `needs:` lists every other job in the workflow, or it merges before they finish; the header of the shared workflow shows the full job. A merge made with `GITHUB_TOKEN` starts no workflows, so a repo that deploys on push to `main` adds a `deploy-merged` job that runs its deploy workflow when the shared workflow's `merged` output is `'true'` (also in the header).
 
 ## Exceptions
 
 - **Sites that publish by committing to `main`:** wordbug and wordbun push words directly from Add Word, so their rulesets block only deletion and force pushes and require no checks. Engine code reaches them through the upstream sync from occasional-wotd, which keeps the full ruleset.
 - **iOS apps:** Xcode builds and simulator tests run on the Mac, not in CI. CI runs what Linux can.
-- **One gate script:** a repo whose checks are one script runs it as one `test` job.
-- **runewright's contract tests against haversack:** they need the private haversack repo, so they run in `scripts/check`, the pre-push gate, and not in CI. Revisit if haversack goes public.
+- **Contract tests against another private repo:** they need that repo, so they run in `scripts/check`, the pre-push gate, and not in CI. Revisit if that repo goes public.
 - **seriouslysean/.github:** an exact mirror of splitleafhq/.github, fast-forwarded after each merge there, so it has no ruleset and takes no PRs.
 
 ## Releases and deploys
 
 - Each repo is either versioned (released by tag) or continuous (deployed from `main`, no tags). `AGENTS.md` says which.
-- A release is an annotated `vX.Y.Z` tag on a commit already on `main`, with a GitHub release and generated notes. Fix a bad release with a new version. A repo's first release needs the owner's OK.
-- Versioned repos turn on immutable releases in the repo settings, so a published release's tag and assets can't change. Releases only go forward: a bad one stays, and a new version replaces it.
+- A release is an annotated `vX.Y.Z` tag on a commit already on `main`, with a GitHub release and generated notes when that is the release-notes home. Fix a bad release with a new version. A repo's first release needs the owner's OK.
+- Versioned repos with GitHub releases turn on immutable releases in the repo settings, so a published release's tag and assets can't change. Releases only go forward: a bad one stays, and a new version replaces it.
 - A version change arrives in a pull request. Agents never push a version bump or tag to `main`; a workflow cuts the release from `main` and retries a missing release even when the tag exists. A repo whose own docs give a release process with an owner approval step follows that instead.
 - OpenClaw plugin repos: `openclaw.build`, `openclaw.compat` and the `openclaw` peer range all name the OpenClaw version the plugin was last tested on, and a test fails when they disagree. The `openclaw` devDependency is what CI typechecks and may be newer. When the plugin is tested on a newer OpenClaw, all of them move together.
 - Keep the version in one file. If a second copy can't be avoided, the check command fails when they disagree.
-- No workflow pushes to `main`. A workflow that changes content opens a pull request, unless the owner grants that push a named ruleset bypass. Exception: wordbug and wordbun take only words on `main`, so their rulesets keep no-force-push and no-delete but drop the pull request and required check rules, and Add Word pushes the word straight to `main`. Code changes reach them from occasional-wotd.
+- No workflow pushes to `main`. A workflow that changes content opens a pull request, unless the owner grants that push a named ruleset bypass.
 - Deploy workflows are separate from `ci.yml`, use concurrency group `pages` without canceling, and say in a comment whether they wait for CI. Deploying on every push is fine only when `main` gets nothing but pull requests that passed a required check. Otherwise the deploy runs on `workflow_run` only when CI succeeded, and checks out the commit CI tested (`${{ github.event.workflow_run.head_sha }}`).
 
 ## Hygiene
