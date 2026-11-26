@@ -148,7 +148,7 @@ Use only GitHub's default labels and labels added by Dependabot.
 
 - **Sites that publish by committing to `main`:** wordbug and wordbun push words directly from Add Word, so their rulesets block only deletion and force pushes and require no checks. Engine code reaches them through the upstream sync from occasional-wotd, which keeps the full ruleset.
 - **iOS apps:** Xcode builds and simulator tests run on the Mac, not in CI. CI runs what Linux can.
-- **Contract tests against another private repo:** they need that repo, so they run in `scripts/check`, the pre-push gate, and not in CI. Revisit if that repo goes public.
+- **Contract tests against another private repo:** they need that repo, so they run by hand on the owner's machine when the pinned version changes, not in `scripts/check` or CI. Revisit if that repo goes public.
 - **seriouslysean/.github:** an exact mirror of splitleafhq/.github, fast-forwarded after each merge there, so it has no ruleset and takes no PRs.
 
 ## Releases and deploys
@@ -167,7 +167,6 @@ Use only GitHub's default labels and labels added by Dependabot.
 - `.gitignore` covers `.env` and `.env.*` (keeping `.env.example`), `.DS_Store` and `.claude/settings.local.json`.
 - A repo that reads environment variables commits `.env.example` with every key and blank secrets.
 - No tracked symlink points outside the repo.
-- A repo whose rules forbid personal data has a check that enforces it.
 
 ## Licenses
 
